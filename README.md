@@ -274,8 +274,11 @@ the model's scepticism is defensible — but it should be stated plainly rather 
 ```
 qcom-fy29-valuation/
 ├── README.md                  # this file — overview, comparison, methodology, results
+├── UPDATE_RUNBOOK.md          # how to re-underwrite this model each earnings release
 ├── qcom_fy29_valuation.ipynb  # the model: assumptions → SOTP → scenarios → PV → charts → sensitivity
 ├── model.py                   # identical logic as a plain Python script (run without Jupyter)
+├── tools/
+│   └── extract_release.py     # fetch + decode a QCOM earnings-release PDF to text
 ├── requirements.txt
 └── .gitignore
 ```
@@ -287,6 +290,13 @@ python3 model.py                      # no dependencies — prints the scenario 
 pip install -r requirements.txt       # for the notebook with charts
 jupyter notebook qcom_fy29_valuation.ipynb
 ```
+
+**Update it when Qualcomm reports** — see [`UPDATE_RUNBOOK.md`](UPDATE_RUNBOOK.md) for the full
+procedure. Pull the primary source with:
+```bash
+python3 tools/extract_release.py 2026 q4 --sections
+```
+*Next release: Q4 + full-year FY2026, November 11, 2026 (after close) — an annual rollover.*
 
 ---
 

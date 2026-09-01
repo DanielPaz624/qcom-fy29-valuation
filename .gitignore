@@ -9,3 +9,4 @@ charts/
 
 # local tooling config
 .claude/
+tools/.cache/

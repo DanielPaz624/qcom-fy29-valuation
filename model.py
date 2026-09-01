@@ -61,9 +61,9 @@ NET_INTEREST_FY29 = 0.5     # $B, interest expense net of investment income
 
 # FY2025 actuals (year ended Sept 28, 2025), for the YoY comparison. EBITDA is
 # derived from the same bridge as FY26E so the two years are directly comparable.
-FY25_REVENUE = 44.284       # $B
-FY25_QCT_EBT = 11.670       # $B (3,246 + 2,857 + 2,671 + 2,896)
-FY25_QTL_EBT = 4.044        # $B (1,158 +   929 +   942 + 1,015)
+FY25_REVENUE = 44.284       # $B   as-reported full-year figures, per the FY25 Q4 release
+FY25_QCT_EBT = 11.670       # $B   (summing the four quarters gives the same 11,670)
+FY25_QTL_EBT = 4.043        # $B   (summing quarters gives 4,044 — as-reported wins)
 FY25_D_AND_A = 1.602        # $B
 
 # --- Scenario inputs ---------------------------------------------------------------
