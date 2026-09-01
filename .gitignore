@@ -6,3 +6,6 @@ venv/
 .DS_Store
 charts/
 *.png
+
+# local tooling config
+.claude/
