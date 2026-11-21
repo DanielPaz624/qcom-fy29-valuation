@@ -3,3 +3,6 @@ numpy>=1.21
 matplotlib>=3.5
 # notebook only:
 jupyter>=1.0
+
+# Optional standard-font SEC release extraction:
+PyPDF2>=2,<4

@@ -14,10 +14,12 @@ Usage:
     python3 tools/extract_release.py --url <pdf-url>      # if the URL pattern changes
     python3 tools/extract_release.py 2026 q4 --offset 29  # force an offset (debugging)
 
-Standard library only. See UPDATE_RUNBOOK.md for how this fits the update cycle.
+CID decoder uses only the standard library; standard-font SEC copies optionally
+use PyPDF2. See UPDATE_RUNBOOK.md for how this fits the update cycle.
 """
 
 import argparse
+import io
 import os
 import re
 import subprocess
@@ -158,8 +160,17 @@ def flatten(text):
 def print_sections(text):
     flat = flatten(text)
     missing = []
+    # Standard PDF readers may split letters ("Str eams", "ST ATEMENTS").
+    # Keep an index map so tolerant matching still slices the original text.
+    compact_positions = [(i, c) for i, c in enumerate(flat) if not c.isspace() and c != "|"]
+    compact = "".join(c for _, c in compact_positions)
     for needle, label, span in SECTIONS:
         i = flat.find(needle)
+        if i < 0:
+            key = "".join(c for c in needle if not c.isspace() and c != "|")
+            match = compact.find(key)
+            if match >= 0:
+                i = compact_positions[match][0]
         if i < 0:
             missing.append(needle)
             continue
@@ -195,14 +206,30 @@ def main():
 
     pdf, path = fetch(url, refresh=args.refresh)
     chunks = raw_strings(pdf)
-    if not chunks:
-        sys.exit("error: no text streams found — is this a scanned or encrypted PDF?")
-    text, offset = decode_auto(chunks, forced=args.offset)
+    if chunks:
+        text, offset = decode_auto(chunks, forced=args.offset)
+    else:
+        # SEC-hosted copies may use normal fonts and content layouts that the CID
+        # decoder does not handle. Never silently treat an empty decode as success.
+        try:
+            from PyPDF2 import PdfReader
+            text = "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(pdf)).pages)
+        except ImportError:
+            sys.exit("error: no CID text streams found. For a standard SEC PDF, install "
+                     "PyPDF2>=2,<4 and retry with that Python interpreter.")
+        except Exception as exc:
+            sys.exit(f"error: standard PDF extraction failed: {exc}")
+        if score(text) < 20:
+            sys.exit("error: standard PDF extraction did not yield readable financial text")
+        offset = None
 
     print(f"# source : {url}", file=sys.stderr)
     print(f"# cached : {path}", file=sys.stderr)
-    print(f"# offset : {offset} (auto-detected)" if args.offset is None
-          else f"# offset : {offset} (forced)", file=sys.stderr)
+    if offset is None:
+        print("# reader : PyPDF2 (standard-font PDF fallback)", file=sys.stderr)
+    else:
+        print(f"# offset : {offset} (auto-detected)" if args.offset is None
+              else f"# offset : {offset} (forced)", file=sys.stderr)
 
     if args.sections:
         print_sections(text)

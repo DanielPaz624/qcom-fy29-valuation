@@ -4,8 +4,8 @@ The procedure for re-underwriting the model when Qualcomm reports. Following it 
 **systematic** (same steps, same sources every time) and **traceable** (you can always tell which
 report a number came from, when it was run, and what changed since the last one).
 
-**Next release: Q4 + full-year FY2026 — Wednesday, November 11, 2026, after close.**
-That one is an *annual rollover*, not an ordinary quarterly update — see §2.
+**Current run: November 21, 2026, on Q4 / full-year FY2026 reported November 4.**
+Next update: Q1 FY2027, when reported. Verify the date on Qualcomm IR; do not carry forward an unconfirmed date.
 
 ---
 
@@ -14,7 +14,7 @@ That one is an *annual rollover*, not an ordinary quarterly update — see §2.
 Paste this into Claude Code from the repo directory. Change only the quarter label:
 
 ```
-Update the QCOM FY29 valuation for Q4 FY2026.
+Update the QCOM FY29 valuation for Q1 FY2027.
 Follow UPDATE_RUNBOOK.md in the repo.
 Price anchor: last close before today.
 ```
@@ -39,33 +39,36 @@ procedure can improve without you having to remember a longer prompt.
 block in `model.py`, replacing the estimate that stood in for it, and refresh the trailing `Q_E`
 guidance row from the new outlook.
 
-**Annual rollover — Q4 + full year.** *This is what November 11, 2026 will be.* Everything above, plus:
+**Annual rollover — Q4 + full year.** The November 2026 run completed this rollover.
 
-1. The `Q4E` guidance row becomes a **Q4 actual**.
-2. The completed fiscal year becomes the prior-year comparison: the `FY25_*` constants
-   (`FY25_REVENUE`, `FY25_QCT_EBT`, `FY25_QTL_EBT`, `FY25_D_AND_A`) are replaced by their FY26
-   equivalents, taken from the **as-reported full-year figures** in the Q4 release — not by summing
-   the four quarters. (The two disagree by ~$1M on QTL EBT; as-reported wins.)
-3. A new `FY27_QUARTERS` block opens, holding only a `Q1E` row from guidance.
-4. `FY26_D_AND_A` becomes the actual full-year figure, replacing the 9-month-derived estimate.
-5. Rename the derived helpers (`fy26_actuals`, `FY26_*`) to the new year.
+1. Replace Q4 guidance with Q4 actuals in the completed-year quarterly history.
+2. Record the **as-reported full-year** revenue, QCT/QTL revenue and EBT, stream
+   revenue and D&A. Annual figures take precedence over quarterly rounding (up to $2M in FY26 QTL EBT).
+3. Open the new year's quarterly block with Q1 guidance only. **Do not sum a lone
+   Q1 guidance row and present it as a full-year estimate.** Retain the completed
+   year's actuals as the trailing valuation and growth anchor until a properly
+   supported full-year estimate exists. A later FY27 quarter replaces the guidance
+   row with actuals and adds the next guidance row; labels must identify coverage.
+4. Preserve FY25 figures for the historical comparison. Advance helper names only
+   when the period they actually represent changes; `fy26_actuals()` still means
+   completed FY26, not a renamed single-quarter FY27 forecast.
+5. Keep new QCT data-center revenue separate from the other streams when reported;
+   do not infer a historical data-center zero from absent separate disclosure.
 
-**Why the annual one matters more than usual this time:** management typically issues full-year
-**FY27 guidance** on the Q4 call. FY27 is the first hard checkpoint against the FY29 path — they have
-already committed to **$5B of data-center revenue in FY27** and **non-handset growth >60% in FY27**.
-Whether that guidance lands, misses, or is withdrawn is the single most informative thing the next
-report can tell you, and it belongs at the top of the "what changed" write-up.
+The FY27 checkpoints are $5B data-center revenue and >60% non-handset growth,
+reiterated on the November 4 release. Q1 guidance is not full-year total-revenue
+or EPS guidance. Check whether the milestones land, change, or are withdrawn.
 
 ---
 
 ## 3. Pull the primary source
 
 ```bash
-python3 tools/extract_release.py 2026 q4 --sections     # the blocks the model needs
-python3 tools/extract_release.py 2026 q4                # full text, if a section is missing
+python3 tools/extract_release.py 2027 q1 --sections     # the blocks the model needs
+python3 tools/extract_release.py 2027 q1                # full text, if a section is missing
 ```
 
-Everything the model consumes comes from the release itself. Never take a figure from a news summary
+Start with the earnings release. Use the company-hosted call transcript for guidance or target detail not in the release, and record both URLs. Never take a figure from a news summary
 when the filing has it.
 
 | Figure needed | Section it appears in |
@@ -84,13 +87,24 @@ current NVDA / AVGO / NXPI EV/EBITDA and post-print analyst price targets.
 > If the extractor fails, it says so loudly rather than emitting garbage. It auto-detects the font
 > offset these PDFs use; if the encoding ever changes, it prints its candidate scores so you can
 > diagnose it. `--url` overrides the URL pattern if Qualcomm renames their files.
+>
+> **FY26 Q4 exception:** the conventional q4cdn path returned HTML and the IR endpoint
+> blocked direct downloads. The SEC-filed copy works. It uses standard PDF fonts:
+> install the optional `PyPDF2>=2,<4` dependency and run with that interpreter:
+>
+> ```bash
+> python3.7 tools/extract_release.py --url https://d18rn0p25nwr6d.cloudfront.net/CIK-0000804328/29e9b475-f432-4e1d-83c3-c602cafb234b.pdf --sections
+> ```
+>
+> The extractor now falls back to PyPDF2 when CID streams are absent. If sections
+> are missing, read full text; do not substitute a search-summary headline.
 
 ---
 
 ## 4. Update `model.py`
 
-Walk the `PROVENANCE` and `ASSUMPTIONS` blocks top to bottom. Nothing outside those two blocks should
-need to change.
+Walk the `PROVENANCE` and `ASSUMPTIONS` blocks top to bottom. Routine anchor changes belong in those blocks. A fiscal rollover or a documented
+modeling correction may also require helper and display changes.
 
 **Provenance** — this is what makes a run traceable, so do it first, not last:
 `VALUATION_DATE`, `LATEST_REPORT` (quarter, period-end date, report date), `REPORT_URL`, `PRICE_DATE`.
@@ -120,7 +134,7 @@ the actual guidance *range*, not just the midpoint you used.
 The judgment step, and the only one that can't be mechanical.
 
 > ### The one locked rule
-> **Base-case FY29 revenue = management's stated targets, at face value.** Base carries management's
+> **Base-case FY29 revenue = management's stated targets, at face value, with explicit mappings where targets are rounded or expressed as a mix.** Base carries management's
 > view; Bear and Bull carry yours. If management revises the FY29 targets, Base moves with them — but
 > Base is never adjusted because you disagree with it. This is what makes "the Base case" mean
 > something specific, and it is what the README's §7 caveat is honest about.
@@ -128,6 +142,14 @@ The judgment step, and the only one that can't be mechanical.
 > Everything else — weights, discount rate, margins, multiples, the EBITDA basis — is yours to change
 > on evidence. **But anything you change must be logged (§7).** Traceability here comes from the log,
 > not from the lock.
+
+**Mapping established November 2026:** the $40B non-handset target is QCT revenue.
+Approximately one-third handset mix implies $20B handset **chips**, excluding QTL.
+The model adds a separate, author-assumed flat $5.556B of licensing to all scenarios'
+handset-chip assumptions. Automotive stays $10B. The $30B remainder is allocated
+between IoT and data center in ratio 14:15 to respect the >$14B / >$15B thresholds.
+Do not silently revert to the prior $39B sum or call the licensing add-on company
+guidance. Revisit the allocation and QTL assumption on evidence, logging any change.
 
 Start by running `python3 model.py` *before* touching anything and reading the **run-rate bridge** it
 prints. It shows the CAGR each segment now needs to reach its FY29 target. That table, more than the
@@ -158,11 +180,13 @@ Then four questions:
 
 ## 6. Notebook
 
-Mirror every `model.py` change into the assumptions cell, then re-execute **with outputs committed**
-so the charts render on GitHub.
+The notebook imports `model.py` and reloads it in its first code cell. Edit financial
+inputs and calculations in the Python module only, then re-execute **with outputs committed**
+so the charts render on GitHub. Keep full precision until presentation; charts and
+sensitivities must call the shared engine rather than reimplement valuation formulas.
 
 ```bash
-python3.7 -c "
+MPLCONFIGDIR=/tmp/qcom-matplotlib IPYTHONDIR=/tmp/qcom-ipython JUPYTER_RUNTIME_DIR=/tmp/qcom-jupyter python3.7 -c "
 import nbformat; from nbclient import NotebookClient
 p='qcom_fy29_valuation.ipynb'; nb=nbformat.read(p, as_version=4)
 NotebookClient(nb, timeout=300, kernel_name='python3').execute(); nbformat.write(nb, p)
@@ -203,14 +227,14 @@ method did.
 
 All of these before committing.
 
-1. **The reconciliation gate.** Quarterly revenue rows must sum to the year-to-date figure printed in
+1. Run `python3 -m unittest discover -s tests -v`. **The reconciliation gate.** Quarterly revenue rows must sum to the year-to-date figure printed in
    the release. *This caught a $188M error last cycle* — two quarterly totals had been taken from
    press-release headlines ("$12.3 billion") rather than the filing ($12,252M).
 2. `python3 model.py` runs on **stdlib alone** — no imports beyond the standard library.
 3. **Notebook equals `model.py`.** Compare the scenario summary line by line. Any disagreement is a
    bug in one of them, usually rounding drift.
-4. **Every headline number in the README appears in `model.py` output.** The README must not assert a
-   figure the model doesn't produce.
+4. **Every headline number in the README appears in `model.py` output or is derived from its unrounded summary.** The README must not assert a
+   valuation figure the model does not produce. Source tables must be checked against the filings.
 5. **Grep for the previous run's values** to catch leftovers — old price, old horizon, old net debt,
    old analyst-target range.
 6. **Look at the charts.** Not "did they render" — open them. Check that guidance/estimate periods
